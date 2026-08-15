@@ -136,4 +136,5 @@ Python 3 standard library and reads only `~/.claude` and `~/.claude.json`.
 
 ## License
 
-MIT
+Apache 2.0 — use it freely, including commercially. Keep the `NOTICE` file if you
+redistribute it (§4(d)).
