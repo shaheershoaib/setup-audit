@@ -170,3 +170,31 @@ routing layer - counting them understated entry by 5x in testing. And it counts 
 explicit `Skill` tool calls, so the rates are a **floor**: a tool driven from the
 command line does not appear. That limit is real and bit once, so it is printed with
 every run.
+
+## Can a cold reader derive the pipeline? (`--graph`)
+
+If your CLAUDE.md is the router that connects decoupled skills, then an agent with no
+prior knowledge should be able to reconstruct the whole pipeline from that one file. This
+pass tests exactly that: it reads the router and nothing else, emits every node and edge
+it can derive, and quotes the line each one came from.
+
+```bash
+python3 audit.py --graph           # human summary
+python3 graph.py                   # full JSON: nodes, edges, gates, aliases, unresolved
+python3 graph.py --router path/to/CLAUDE.md
+```
+
+Three things it catches that the static pass cannot:
+
+- **No spine.** A router that says *which skill for which condition* but never *what
+  follows what* is a dispatch table, not a pipeline. Any diagram of it has to invent the
+  sequence. On the setup this was built against, that invention produced four fabricated
+  nodes before the check existed.
+- **Aliases.** The same skill spelled two ways (`brainstorming` and
+  `superpowers:brainstorming`) reads as two skills to a cold agent. Found on first run.
+- **Named but unreachable.** Skills the router mentions with no edge into them. Reachable
+  only by asking for them by name, which is fine for a tool and a defect for a phase.
+
+The router contract it reads is documented at the top of `graph.py`: a small set of
+section headings, backticks for skill names, `.py` for hooks. Anything else is prose.
+
