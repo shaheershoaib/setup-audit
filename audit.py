@@ -196,4 +196,18 @@ if diff_lines:
 elif SNAP.exists() and "--snapshot" not in sys.argv:
     print("\nNo drift vs snapshot.")
 print()
+
+# The pass above proves every file parses. It cannot see a route that parses perfectly
+# and has never once fired - which is how a setup can report 100% while most of its
+# routing table is dead. --adherence answers that other half.
+if "--adherence" in sys.argv or "--full" in sys.argv:
+    import subprocess
+    sys.stdout.flush()          # ours is buffered; the child writes straight to fd 1
+    extra = [a for i, a in enumerate(sys.argv)
+             if a.startswith(("--entry", "--cli-driven", "--router"))]
+    subprocess.run([sys.executable, str(Path(__file__).parent / "adherence.py")] + extra)
+elif "--snapshot" not in sys.argv:
+    print("  (readiness covers config integrity only - run with --adherence to measure")
+    print("   whether the routing actually fires)\n")
+
 sys.exit(1 if fails else 0)
