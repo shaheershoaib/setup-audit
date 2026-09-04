@@ -40,9 +40,16 @@ HUMAN = "--human" in sys.argv
 SKILL = re.compile(r"`([a-z][a-z0-9-]*(?::[a-z0-9-]+)?)`")
 # Things in backticks that are files, commands or flags, not skills.
 NOT_SKILL = re.compile(r"\.(py|md|json|sh|ts|tsx)$|^--|/|^npx |\.py ")
+# Run-record STAGE names appear in backticks too and are not skills. Found when the derived
+# graph grew a node called `pr-landed`.
+STAGE_NAME = re.compile(r"^(pr-landed|pr-opened|board-close|board-progress|receipts-out|"
+                        r"comments-read|workset|receipt|merge|migration)$")
 
 
 def sections(text):
+    """Heading -> lines, with wrapped bullets re-joined. A `- **trigger** ->` whose `skill`
+    sits on the next indented line is one bullet; parsing line-by-line lost the codemod
+    entry route entirely, so the derived graph was missing an edge the router declares."""
     out, cur = {}, None
     for line in text.split("\n"):
         m = re.match(r"^##+ (.+)$", line)
@@ -50,12 +57,16 @@ def sections(text):
             cur = m.group(1).strip()
             out[cur] = []
         elif cur:
-            out[cur].append(line)
+            if (re.match(r"^  \S", line) and out[cur]
+                    and re.match(r"^\s*-\s", out[cur][-1]) and not line.startswith("  -")):
+                out[cur][-1] += " " + line.strip()        # continuation of the previous bullet
+            else:
+                out[cur].append(line)
     return out
 
 
 def skills_in(line):
-    return [s for s in SKILL.findall(line) if not NOT_SKILL.search(s)]
+    return [s for s in SKILL.findall(line) if not NOT_SKILL.search(s) and not STAGE_NAME.match(s)]
 
 
 def main():
@@ -76,11 +87,16 @@ def main():
             if m:
                 phases.append({"n": int(m.group(1)), "phase": m.group(2),
                                "runs": skills_in(m.group(3)),
+                               "runs_hooks": re.findall(r"`([\w.-]+\.py)`", m.group(3)),
                                "gates": re.findall(r"`([\w.-]+\.py)`", m.group(4))})
     phases.sort(key=lambda p: p["n"])
     for i, ph in enumerate(phases):
         for s_ in ph["runs"]:
             node(s_, "phase:%d %s" % (ph["n"], ph["phase"]), "The spine")
+        for h in ph["runs_hooks"]:
+            # A hook that RUNS at a phase (phase 0's route-gate.py) is a node of kind hook,
+            # never a skill: it fires on its own and cannot be invoked.
+            node(h, "hook:%d %s" % (ph["n"], ph["phase"]), "The spine")
         if i + 1 < len(phases):
             for a in ph["runs"] or ["(phase %d)" % ph["n"]]:
                 for b in phases[i + 1]["runs"] or ["(phase %d)" % phases[i + 1]["n"]]:
@@ -165,7 +181,8 @@ def main():
         unresolved.append("`%s` is also spelled with a namespace: one skill, two names" % a)
 
     out = {"router": ROUTER, "nodes": nodes, "edges": edges, "gates": gates,
-           "aliases": aliases, "unresolved": unresolved}
+           "aliases": aliases, "unresolved": unresolved,
+           "phases": [ph["phase"] for ph in phases]}
     if not HUMAN:
         print(json.dumps(out, indent=1))
         return
