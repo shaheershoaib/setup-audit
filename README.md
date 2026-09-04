@@ -138,3 +138,35 @@ Python 3 standard library and reads only `~/.claude` and `~/.claude.json`.
 
 Apache 2.0 — use it freely, including commercially. Keep the `NOTICE` file if you
 redistribute it (§4(d)).
+
+## Does the routing actually fire? (`--adherence`)
+
+The check above answers "does every file parse and every path resolve". It cannot see a
+skill that parses perfectly and has never once been invoked, so a setup can report
+**readiness 100%** while most of its routing table is dead. That happened: a real setup
+graded 76/76 OK while 20 of the 30 skills its router named had never fired across 891
+sessions, and its downstream chain rate was 6%.
+
+```bash
+python3 audit.py --adherence
+```
+
+It reads the session transcripts under `~/.claude/projects` and reports:
+
+- **entry** - share of sessions that invoked any skill at all
+- **chain** - of the sessions that entered an entry-point skill, the share that went on
+  to a downstream one
+- **dead routes** - skills your router names that have never been invoked
+
+Your own entry points are passed in rather than baked in:
+
+```bash
+python3 audit.py --adherence --entry my-loop,my-board-adapter --cli-driven my-cli-skill
+```
+
+Two things it does deliberately. It **excludes subagent sidechains** from the
+denominator, because a subagent dispatched to do one task is supposed to skip the
+routing layer - counting them understated entry by 5x in testing. And it counts only
+explicit `Skill` tool calls, so the rates are a **floor**: a tool driven from the
+command line does not appear. That limit is real and bit once, so it is printed with
+every run.
