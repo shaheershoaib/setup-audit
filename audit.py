@@ -200,6 +200,11 @@ print()
 # The pass above proves every file parses. It cannot see a route that parses perfectly
 # and has never once fired - which is how a setup can report 100% while most of its
 # routing table is dead. --adherence answers that other half.
+if "--graph" in sys.argv or "--full" in sys.argv:
+    import subprocess
+    sys.stdout.flush()
+    extra = [x for x in sys.argv if x.startswith("--router")]
+    subprocess.run([sys.executable, str(Path(__file__).parent / "graph.py"), "--human"] + extra)
 if "--adherence" in sys.argv or "--full" in sys.argv:
     import subprocess
     sys.stdout.flush()          # ours is buffered; the child writes straight to fd 1
@@ -207,7 +212,7 @@ if "--adherence" in sys.argv or "--full" in sys.argv:
              if a.startswith(("--entry", "--cli-driven", "--router"))]
     subprocess.run([sys.executable, str(Path(__file__).parent / "adherence.py")] + extra)
 elif "--snapshot" not in sys.argv:
-    print("  (readiness covers config integrity only - run with --adherence to measure")
-    print("   whether the routing actually fires)\n")
+    print("  (readiness covers config integrity only. --adherence: does the routing fire?")
+    print("   --graph: can a cold reader derive the pipeline from the router alone?)\n")
 
 sys.exit(1 if fails else 0)
