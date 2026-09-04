@@ -198,3 +198,26 @@ Three things it catches that the static pass cannot:
 The router contract it reads is documented at the top of `graph.py`: a small set of
 section headings, backticks for skill names, `.py` for hooks. Anything else is prose.
 
+## A pipeline diagram that is proven, not drawn (`render.py`)
+
+`graph.py` derives the graph. `render.py` draws it as a swim-lane pipeline - phases as
+lanes, nodes coloured by role, the gate layer as a capsule, unrouted nodes on a detached
+shelf - and can only draw what `graph.py` found, with exact node names.
+
+```bash
+python3 graph.py > graph.json
+python3 render.py graph.json --html > pipeline.html
+python3 render.py graph.json --prove      # exit 1 on any failure
+```
+
+`--prove` checks five things a hand-drawn diagram cannot promise: every router node is
+drawn with its exact name; nothing skill-shaped is drawn that the router lacks; the
+capsule's gate count equals the router's; every spine phase has a lane; a hook that runs
+at a phase is drawn as a hook. On the setup this was built against, the hand-drawn
+predecessor carried four nodes the router never declared and went stale twice in one
+afternoon. Re-run both scripts after any router change and the diagram follows.
+
+Two extractor fixes landed with this: run-record stage names in backticks (`pr-landed`)
+are no longer read as skills, and a bullet that wraps onto an indented continuation line
+is parsed as one bullet - the codemod entry route had been invisible for that reason.
+
