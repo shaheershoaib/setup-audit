@@ -99,7 +99,7 @@ if settings.exists():
     for cmd in find_commands(sj.get("hooks", {})):
         inv["hooks"].append(cmd[:60])
         cand = None
-        for tok in cmd.replace('"', " ").split():
+        for tok in cmd.replace('"', " ").replace("'", " ").split():   # a guard like [ ! -f 'X' ] || 'X' hook quotes X
             t = os.path.expanduser(os.path.expandvars(tok))
             if "/" in t and Path(t).is_file():
                 cand = t
